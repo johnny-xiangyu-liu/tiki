@@ -16,8 +16,8 @@ import os
 from collections import defaultdict
 
 import torch
-
 from tiki import utils
+from tiki.checkpoint_state import CheckpointState
 from tiki.train_config import TrainConfig
 from tiki.train_state import TrainState
 
@@ -31,37 +31,31 @@ class CheckpointManager:
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        state_map = {
-            'train_config_state_dict': self.train_config.state_dict(),
-            'train_state_state_dict': train_state.state_dict(),
-            'model_state_dict': model.state_dict(),
-        }
+        checkpoint_state = CheckpointState()
+        checkpoint_state.train_config_state_dict = self.train_config.state_dict()
+        checkpoint_state.train_state_state_dict = train_state.state_dict()
+        checkpoint_state.model_state_dict = model.state_dict()
 
         if optimizer is not None:
-            state_map['optimizer_state_dict'] = optimizer.state_dict()
+            checkpoint_state.optimizer_state_dict = optimizer.state_dict()
 
         if dataloader is not None:
             state_dict_op = getattr(dataloader, "state_dict", None)
             if callable(state_dict_op):
-                state_map['dataloader_state_dict'] = state_dict_op(dataloader)
+                checkpoint_state.dataloader_state_dict = state_dict_op(dataloader)
         if not debug:
-            torch.save(state_map, path)
+            torch.save(checkpoint_state, path)
         print("Saving checkpoint to ", path)
 
     # Always loads onto CPU device.
     @classmethod
-    def load(cls, train_config: TrainConfig, train_state: TrainState = None):
+    def load(cls, train_config: TrainConfig, train_state: TrainState = None) -> CheckpointState:
         checkpoint_path = utils.find_model_checkpoint_path(train_config, train_state)
         if checkpoint_path is not None:
             state_map = torch.load(checkpoint_path, map_location=torch.device("cpu"), weights_only=True)
         else:
             state_map = {}
 
-        state_map = defaultdict(lambda: None, state_map)
-        train_config_state_dict = state_map['train_config_state_dict']
-        train_state_state_dict = state_map['train_state_state_dict']
-        model_state_dict = state_map['model_state_dict']
-        optimizer_state_dict = state_map['optimizer_state_dict']
-        dataloader_state_dict = state_map['dataloader_state_dict']
-
-        return train_config_state_dict, train_state_state_dict, model_state_dict, optimizer_state_dict, dataloader_state_dict
+        checkpoint_state = CheckpointState()
+        checkpoint_state.load_state_dict(state_map)
+        return checkpoint_state

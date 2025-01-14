@@ -20,6 +20,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+from tiki.checkpoint_manager import CheckpointManager
 from tiki.evaluator import Evaluator
 from tiki.train_config import TrainConfig
 from tiki.train_state import TrainState
@@ -35,8 +36,8 @@ class Trainer:
                                     Any,  # target
                                     ], torch.tensor],
                  dataloader: DataLoader,
-                 checkpoint_manager,
-                 evaluator: "Evaluator",
+                 checkpoint_manager: CheckpointManager,
+                 evaluator: Evaluator,
                  log_writer: SummaryWriter,
                  start_state=None,
                  ):
